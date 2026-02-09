@@ -12,7 +12,7 @@ from sqlalchemy import (
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
-from db.base import Base
+from app.db.base import Base
 from sqlalchemy.dialects.postgresql import UUID
 
 
