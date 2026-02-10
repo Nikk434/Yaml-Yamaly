@@ -1,7 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from dotenv import load_dotenv
+import os
 
-DATABASE_URL = "postgresql+psycopg2://nik:nikadmin@localhost:5432/label_db"
+load_dotenv(r"backend\.env.local")
+
+DATABASE_URL = os.getenv("DB_URL")
 
 engine = create_engine(
     DATABASE_URL,
