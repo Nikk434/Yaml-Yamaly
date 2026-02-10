@@ -23,6 +23,7 @@ class SessionCreateResponse(BaseModel):
     created_at: datetime
 
 class SessionContext(BaseModel):
+    session_id:UUID
     room_id: UUID
     role: SessionRole
     last_seen_at: datetime
