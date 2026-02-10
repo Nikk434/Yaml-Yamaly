@@ -5,6 +5,10 @@ from app.db.base import Base
 from app.api.room import create_room_endpoint
 from app.db.session import engine
 from app.api.room import router as room_router
+from app.models.room import Room
+from app.models.session import Session, SessionRole
+from app.schemas.room import JoinRoomRequest, JoinRoomResponse
+
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
 

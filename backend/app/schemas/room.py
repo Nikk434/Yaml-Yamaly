@@ -1,3 +1,4 @@
+from app.models.session import SessionRole
 from datetime import datetime
 from pydantic import BaseModel, Field
 from uuid import UUID
@@ -20,3 +21,11 @@ class RoomPublic(BaseModel):
 
     class Config:
         from_attributes = True
+
+class JoinRoomRequest(BaseModel):
+    room_code: str
+
+
+class JoinRoomResponse(BaseModel):
+    session_id: UUID
+    role: SessionRole
