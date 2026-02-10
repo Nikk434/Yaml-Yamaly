@@ -3,3 +3,18 @@ uvicorn[standard]
 pydantic
 python-dotenv
 sqlalchemy
+
+# rooms
+# - id (UUID)
+# - room_code (human, joinable)
+# - owner_secret (LONG-LIVED, private)
+# - created_at
+# - expires_at (optional)
+
+# sessions
+# - id (UUID)
+# - room_id (FK)
+# - session_token (LONG-LIVED)
+# - role (host | contributor)
+# - created_at
+# - last_seen_at
