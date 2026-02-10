@@ -4,7 +4,8 @@ from app.api import rooms
 # from app.api import create_room
 from app.db.sessions import engine
 from app.db.base import Base
-from app.api import sessions
+from app.api import sessions, yaml_classes
+
 
 app = FastAPI(
     title="YOLO Class Mapping Tool",
@@ -21,3 +22,4 @@ app.include_router(
     tags=["rooms"]
 )
 app.include_router(sessions.router, prefix="/api")
+app.include_router(yaml_classes.router, prefix="/api")
