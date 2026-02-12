@@ -32,7 +32,7 @@ export default function Home(){
 
     try {
       // Call sessions/join endpoint
-      const response = await fetch('/api/sessions/join', {
+      const response = await fetch('/api/session/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room_code: code }),
@@ -61,20 +61,26 @@ export default function Home(){
     setLoading(true);
     try {
       // Step 1: Create room
-      const createResponse = await fetch('/api/rooms/create', {
+      const createResponse = await fetch('/api/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
+      console.log("Log start");
+      console.log("createResponse",createResponse);
       
       if (!createResponse.ok) {
         throw new Error('Failed to create room');
       }
-
+      
       const createData = await createResponse.json();
+      console.log("createData",createData);
       const { room_code, owner_secret } = createData;
-
+      console.log("RC",createData.room_code);
+      console.log("OS",createData.owner_secret);
+      console.log("Log end");
+      
       // Step 2: Create host session
-      const sessionResponse = await fetch('/api/sessions/host', {
+      const sessionResponse = await fetch('/api/session/host', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room_code, owner_secret }),
