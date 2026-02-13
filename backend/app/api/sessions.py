@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 import secrets
-
+from sqlalchemy import func
 from app.db.sessions import get_db
 from app.schemas.rooms_sch import Room
 from app.schemas.sessions_sch import Session as SessionModel
@@ -77,3 +77,38 @@ def create_contributor_session(
         role=session.role,
         created_at=session.created_at
     )
+
+@router.get("/sessions/count")
+def get_room_session_count(
+    room_code: str,
+    db: Session = Depends(get_db)
+):
+    room = (
+        db.query(Room)
+        .filter(Room.room_code == room_code)
+        .first()
+    )
+
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    counts = (
+        db.query(SessionModel.role, func.count(SessionModel.id))
+        .filter(SessionModel.room_id == room.id)
+        .group_by(SessionModel.role)
+        .all()
+    )
+
+    result = {
+        "host": 0,
+        "contributor": 0
+    }
+
+    for role, count in counts:
+        result[role.value] = count
+
+    return {
+        "room_code": room_code,
+        "host_count": result["host"],
+        "contributor_count": result["contributor"]
+    }
