@@ -5,16 +5,46 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Copy, Check, Users, Crown } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Cookies from 'js-cookie';
 
 export default function RoomPage() {
   const { roomCode } = useParams();
   const [copied, setCopied] = useState(false);
   const [className, setClassName] = useState('');
-  
-  // Mock data - replace with actual API calls later
-  const [contributors] = useState(5);
-  const isHost = true; // Determine from session/cookie
+  const [sessionInfo, setSessionInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSessionInfo = async () => {
+      const sessionToken = Cookies.get('session_token');
+      
+      if (!sessionToken) {
+        console.error('No session token found');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/session/info?room_code=${roomCode}&session_token=${sessionToken}`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch session info');
+        }
+
+        const data = await response.json();
+        setSessionInfo(data);
+      } catch (error) {
+        console.error('Error fetching session info:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSessionInfo();
+  }, [roomCode]);
 
   const copyRoomCode = () => {
     navigator.clipboard.writeText(roomCode);
@@ -31,6 +61,9 @@ export default function RoomPage() {
     setClassName('');
   };
 
+  const isHost = sessionInfo?.your_role === 'host';
+  const contributorCount = sessionInfo?.contributor_count || 0;
+
   return (
     <div className="min-h-screen bg-zinc-900 p-6">
       <div className="max-w-7xl mx-auto">
@@ -40,17 +73,23 @@ export default function RoomPage() {
             <Card className="bg-zinc-800 border-zinc-700 p-4 space-y-4">
               <h2 className="text-lg font-bold text-zinc-100">Room Info</h2>
               
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-zinc-300">
-                  <Crown className="h-4 w-4 text-yellow-500" />
-                  <span className="text-sm">Host</span>
+              {loading ? (
+                <p className="text-zinc-400 text-sm">Loading...</p>
+              ) : (
+                <div className="space-y-3">
+                  {isHost && (
+                    <div className="flex items-center gap-2 text-zinc-300">
+                      <Crown className="h-4 w-4 text-yellow-500" />
+                      <span className="text-sm">You are Host</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2 text-zinc-300">
+                    <Users className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm">{contributorCount} Contributors</span>
+                  </div>
                 </div>
-                
-                <div className="flex items-center gap-2 text-zinc-300">
-                  <Users className="h-4 w-4 text-blue-500" />
-                  <span className="text-sm">{contributors} Contributors</span>
-                </div>
-              </div>
+              )}
             </Card>
           </div>
 
@@ -87,7 +126,7 @@ export default function RoomPage() {
                   {['person', 'car', 'dog', 'cat'].map((name, idx) => (
                     <div 
                       key={idx}
-                      className="bg-zinc-900 p-3 border border-zinc-700 text-zinc-300"
+                      className="bg-zinc-900 p-3 rounded border border-zinc-700 text-zinc-300"
                     >
                       {name}
                     </div>
@@ -103,7 +142,7 @@ export default function RoomPage() {
               <h2 className="text-lg font-bold text-zinc-100">Room Code</h2>
               
               <div className="space-y-3">
-                <div className="bg-zinc-900 p-4">
+                <div className="bg-zinc-900 p-4 rounded-lg">
                   <p className="text-2xl font-mono font-bold text-zinc-100 text-center tracking-wider">
                     {roomCode}
                   </p>
