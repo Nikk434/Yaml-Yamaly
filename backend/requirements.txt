@@ -3,6 +3,8 @@ uvicorn[standard]
 pydantic
 python-dotenv
 sqlalchemy
+python-socketio[asgi]
+
 
 # rooms
 # - id (UUID)

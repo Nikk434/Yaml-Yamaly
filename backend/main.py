@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-
+from socket_app import socket_app
 from app.api import rooms
 # from app.api import create_room
 from app.db.sessions import engine
@@ -11,6 +11,8 @@ app = FastAPI(
     title="YOLO Class Mapping Tool",
     version="0.1.0"
 )
+
+app.mount("/", socket_app)
 
 # Create tables (only for dev / internal tool)
 Base.metadata.create_all(bind=engine)
