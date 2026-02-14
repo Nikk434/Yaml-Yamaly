@@ -87,3 +87,19 @@ def review_class(
     db.commit()
     db.refresh(obj)
     return obj
+
+@router.get("", response_model=list[YamlClassResponse])
+def list_classes(
+    session_token: str = Header(..., alias="X-Session-Token"),
+    db: Session = Depends(get_db),
+):
+    session = get_current_session(session_token, db)
+
+    classes = (
+        db.query(YamlClass)
+        .filter(YamlClass.room_id == session.room_id)
+        .order_by(YamlClass.created_at.asc())
+        .all()
+    )
+
+    return classes
