@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Copy, Check, Users, Crown } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Cookies from 'js-cookie';
+import { io } from 'socket.io-client';
 
 export default function RoomPage() {
   const { roomCode } = useParams();
@@ -15,6 +16,41 @@ export default function RoomPage() {
   const [sessionInfo, setSessionInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [classList, setClassList] = useState([]);
+  const [socket, setSocket] = useState(null);
+  
+
+  // Socket.IO connection
+  useEffect(() => {
+  const sessionToken = Cookies.get('session_token');
+  if (!sessionToken || !roomCode) return;
+
+  const socketInstance = io(
+    process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000',
+    { transports: ['websocket'] }
+  );
+
+  socketInstance.on('connect', () => {
+    socketInstance.emit('join_room', {
+      session_token: sessionToken,
+      room_code: roomCode,
+    });
+  });
+
+  socketInstance.on('room_presence_update', (data) => {
+    console.log("SOCKET DATA", data);
+    setSessionInfo(prev => ({
+      ...prev,
+      host_count: data.host_count,
+      contributor_count: data.contributor_count,
+    }));
+  });
+
+  setSocket(socketInstance);
+
+  return () => socketInstance.disconnect();
+}, [roomCode]);
+
+
 
 
   useEffect(() => {
