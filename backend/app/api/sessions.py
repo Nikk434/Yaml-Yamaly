@@ -47,8 +47,9 @@ def create_host_session(
     )
 
 @router.post("/sessions/join", response_model=SessionCreateResponse)
-def create_contributor_session(
+def create_or_restore_session(
     room_code: str,
+    session_token: str | None = None,
     db: Session = Depends(get_db)
 ):
     room = (
@@ -60,6 +61,29 @@ def create_contributor_session(
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
 
+    # 1. Try restoring existing session
+    if session_token:
+        existing_session = (
+            db.query(SessionModel)
+            .filter(
+                SessionModel.session_token == session_token,
+                SessionModel.room_id == room.id
+            )
+            .first()
+        )
+
+        if existing_session:
+            existing_session.last_seen_at = datetime.utcnow()
+            db.commit()
+
+            return SessionCreateResponse(
+                session_token=existing_session.session_token,
+                role=existing_session.role,
+                room_code=room.room_code,
+                created_at=existing_session.created_at
+            )
+
+    # 2. Otherwise create new contributor session
     session = SessionModel(
         room_id=room.id,
         session_token=secrets.token_urlsafe(48),
