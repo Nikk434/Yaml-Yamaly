@@ -11,13 +11,37 @@ from app.models.yaml_class import (
     YamlClassReviewRequest
 )
 from app.dependencies.sesh_dep import get_current_session
+from thefuzz import process, fuzz
+
+FUZZY_THRESHOLD = 60
+
+def fuzzy_match_class(normalized_name: str, existing_classes):
+    """
+    existing_classes: list of (id, normalized_class_name)
+    """
+    choices = {cls.normalized_class_name: cls.id for cls in existing_classes}
+
+    results = process.extract(
+        normalized_name,
+        choices.keys(),
+        scorer=fuzz.partial_ratio,
+        limit=None
+    )
+
+    matches = [
+        (choices[name], name, score)
+        for name, score in results
+        if score >= FUZZY_THRESHOLD
+    ]
+
+    return matches
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 
 @router.post("", response_model=YamlClassResponse, status_code=201)
 def create_class(
     payload: YamlClassCreateRequest,
-    session_token: str = Header(..., alias="X-Session-Token"),
+    session_token: str, #= Header(..., alias="X-Session-Token"),
     db: Session = Depends(get_db),
 ):
     session = get_current_session(session_token, db)
@@ -27,21 +51,42 @@ def create_class(
 
     normalized = payload.class_name.strip().lower()
 
+    status_value = ClassStatusDB.entered
+    review_reason = None
+    matched_id = None
+
+    # 1. Exact duplicate check (unchanged)
     existing = db.query(YamlClass).filter(
         YamlClass.room_id == session.room_id,
         YamlClass.normalized_class_name == normalized,
         YamlClass.status == ClassStatusDB.approved
     ).first()
 
-    status_value = ClassStatusDB.entered
-    review_reason = None
-    matched_id = None
-
     if existing:
         status_value = ClassStatusDB.needs_review
+        print("")
         review_reason = "exact duplicate"
         matched_id = existing.id
 
+    # 2. Fuzzy duplicate check (only if exact not found)
+
+    if not existing:
+        print("Entered fuzzy match")
+        approved_classes = db.query(YamlClass).filter(
+            YamlClass.room_id == session.room_id,
+            YamlClass.status == ClassStatusDB.approved
+        ).all()
+
+        fuzzy_matches = fuzzy_match_class(normalized, approved_classes)
+
+        if fuzzy_matches:
+            # pick best match
+            matched_id, matched_name, score = fuzzy_matches[0]
+
+            status_value = ClassStatusDB.needs_review
+            review_reason = f"fuzzy match ({score}%) with '{matched_name}'"
+        print("exited fuzzy match")
+        
     obj = YamlClass(
         room_id=session.room_id,
         created_by_session_id=session.session_id,
