@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
 from datetime import datetime
+from thefuzz import process, fuzz
+from fastapi.responses import Response
+import yaml
+
 
 from app.db.sessions import get_db
+from app.schemas.rooms_sch import Room
 from app.schemas.yaml_class import YamlClass, ClassStatusDB
 from app.models.yaml_class import (
     YamlClassCreateRequest,
@@ -11,15 +16,16 @@ from app.models.yaml_class import (
     YamlClassReviewRequest
 )
 from app.dependencies.sesh_dep import get_current_session
-from thefuzz import process, fuzz
+from app.realtime.class_events import emit_class_created, emit_class_reviewed
 
 FUZZY_THRESHOLD = 60
 
+router = APIRouter(prefix="/classes", tags=["classes"])
+
+
 def fuzzy_match_class(normalized_name: str, existing_classes):
-    """
-    existing_classes: list of (id, normalized_class_name)
-    """
     choices = {cls.normalized_class_name: cls.id for cls in existing_classes}
+
 
     results = process.extract(
         normalized_name,
@@ -36,12 +42,11 @@ def fuzzy_match_class(normalized_name: str, existing_classes):
 
     return matches
 
-router = APIRouter(prefix="/classes", tags=["classes"])
 
 @router.post("", response_model=YamlClassResponse, status_code=201)
-def create_class(
+async def create_class(
     payload: YamlClassCreateRequest,
-    session_token: str, #= Header(..., alias="X-Session-Token"),
+    session_token: str,
     db: Session = Depends(get_db),
 ):
     session = get_current_session(session_token, db)
@@ -55,7 +60,7 @@ def create_class(
     review_reason = None
     matched_id = None
 
-    # 1. Exact duplicate check (unchanged)
+    # exact duplicate
     existing = db.query(YamlClass).filter(
         YamlClass.room_id == session.room_id,
         YamlClass.normalized_class_name == normalized,
@@ -68,24 +73,23 @@ def create_class(
         review_reason = "exact duplicate"
         matched_id = existing.id
 
-    # 2. Fuzzy duplicate check (only if exact not found)
-
+    # fuzzy duplicate
     if not existing:
-        print("Entered fuzzy match")
+        print("Entered fuzzy match\n")
         approved_classes = db.query(YamlClass).filter(
             YamlClass.room_id == session.room_id,
             YamlClass.status == ClassStatusDB.approved
         ).all()
+        print("Approved classes:", [c.normalized_class_name for c in approved_classes])
 
         fuzzy_matches = fuzzy_match_class(normalized, approved_classes)
 
         if fuzzy_matches:
-            # pick best match
             matched_id, matched_name, score = fuzzy_matches[0]
 
             status_value = ClassStatusDB.needs_review
             review_reason = f"fuzzy match ({score}%) with '{matched_name}'"
-        print("exited fuzzy match")
+        print("exited fuzzy match\n")
         
     obj = YamlClass(
         room_id=session.room_id,
@@ -96,14 +100,20 @@ def create_class(
         review_reason=review_reason,
         matched_class_id=matched_id
     )
-
+    print("\nOBJ",obj)
     db.add(obj)
     db.commit()
     db.refresh(obj)
+
+    room = db.query(Room).filter(Room.id == session.room_id).first()
+
+    await emit_class_created(room.room_code, obj)
+
     return obj
 
+
 @router.patch("/{class_id}", response_model=YamlClassResponse)
-def review_class(
+async def review_class(
     class_id: UUID,
     payload: YamlClassReviewRequest,
     session_token: str = Header(..., alias="X-Session-Token"),
@@ -131,7 +141,13 @@ def review_class(
 
     db.commit()
     db.refresh(obj)
+
+    room = db.query(Room).filter(Room.id == session.room_id).first()
+
+    await emit_class_reviewed(room.room_code, obj)
+
     return obj
+
 
 @router.get("", response_model=list[YamlClassResponse])
 def list_classes(
@@ -148,3 +164,56 @@ def list_classes(
     )
 
     return classes
+
+@router.get("/export")
+def export_yaml(
+    session_token: str = Header(..., alias="X-Session-Token"),
+    db: Session = Depends(get_db),
+):
+    session = get_current_session(session_token, db)
+
+    if session.role != "host":
+        raise HTTPException(status_code=403, detail="Host only")
+
+    classes = db.query(YamlClass).filter(
+        YamlClass.room_id == session.room_id
+    ).all()
+
+    # block export if unreviewed exist
+    pending = [
+        c for c in classes
+        if c.status in (ClassStatusDB.entered, ClassStatusDB.needs_review)
+    ]
+
+    if pending:
+        raise HTTPException(
+            status_code=400,
+            detail="Some classes still need approval before export"
+        )
+
+    approved = [
+        c for c in classes
+        if c.status == ClassStatusDB.approved
+    ]
+
+    approved.sort(key=lambda x: x.created_at)
+
+    names = {i: c.raw_class_name for i, c in enumerate(approved)}
+
+    yaml_data = {
+        "train": "",
+        "val": "",
+        "test": "",
+        "nc": len(names),
+        "names": names
+    }
+
+    yaml_string = yaml.dump(yaml_data, sort_keys=False)
+
+    return Response(
+        content=yaml_string,
+        media_type="text/yaml",
+        headers={
+            "Content-Disposition": "attachment; filename=data.yaml"
+        }
+    )

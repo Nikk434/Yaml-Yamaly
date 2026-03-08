@@ -4,7 +4,7 @@ pydantic
 python-dotenv
 sqlalchemy
 python-socketio[asgi]
-
+pyyaml
 
 # rooms
 # - id (UUID)
