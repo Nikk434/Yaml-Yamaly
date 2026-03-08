@@ -75,6 +75,7 @@ def create_contributor_session(
     return SessionCreateResponse(
         session_token=session.session_token,
         role=session.role,
+        room_code=room.room_code,
         created_at=session.created_at
     )
 
