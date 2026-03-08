@@ -108,7 +108,23 @@
     --chart-5: 340 75% 55%
   }
 }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(8px); }
+}
+
+.toast-fade-in {
+  animation: toast-in 300ms ease forwards;
+}
+
+.toast-fade-out {
+  animation: toast-out 300ms ease forwards;
+}
 
 
 @layer base {
