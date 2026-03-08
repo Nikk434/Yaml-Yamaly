@@ -12,7 +12,6 @@ app = FastAPI(
     version="0.1.0"
 )
 
-app.mount("/", socket_app)
 
 # Create tables (only for dev / internal tool)
 Base.metadata.create_all(bind=engine)
@@ -25,3 +24,5 @@ app.include_router(
 )
 app.include_router(sessions.router, prefix="/api")
 app.include_router(yaml_classes.router, prefix="/api")
+
+app.mount("/", socket_app)
