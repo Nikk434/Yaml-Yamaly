@@ -24,13 +24,14 @@ export async function POST(request) {
       );
     }
 
-    const response = await fetch(`${process.env.BACKEND_URL}/api/classes`, {
+    const response = await fetch(`${process.env.BACKEND_URL}/api/classes?session_token=${sessionToken}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Session-Token': sessionToken,
+        'X-Session-Token': sessionToken,  
       },
       body: JSON.stringify({ class_name }),
+      
     });
 
     if (!response.ok) {
