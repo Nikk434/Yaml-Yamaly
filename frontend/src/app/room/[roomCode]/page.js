@@ -64,6 +64,7 @@ function PresenceToast({ toasts }) {
 // --- Class List Item with slide-in ---
 function ClassItem({ item, isHost, onReview }) {
   const [mounted, setMounted] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(null); // 'approved' | 'discarded' | null
 
   useEffect(() => {
     const t = requestAnimationFrame(() => setMounted(true));
@@ -72,8 +73,17 @@ function ClassItem({ item, isHost, onReview }) {
 
   const borderColor =
     item.status === 'approved' ? 'border-green-700'
-    : item.status === 'needs_review' ? 'border-yellow-700'
-    : 'border-zinc-700';
+      : item.status === 'needs_review' ? 'border-yellow-700'
+        : 'border-zinc-700';
+
+  const handleReview = async (id, action) => {
+    setLoadingAction(action);
+    try {
+      await onReview(id, action);
+    } finally {
+      setLoadingAction(null);
+    }
+  };
 
   return (
     <div
@@ -94,16 +104,28 @@ function ClassItem({ item, isHost, onReview }) {
           <Button
             size="sm"
             className="bg-green-700 hover:bg-green-600 text-white"
-            onClick={() => onReview(item.id, 'approved')}
+            disabled={loadingAction !== null}
+            onClick={() => handleReview(item.id, 'approved')}
           >
-            Approve
+            {loadingAction === 'approved' ? (
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : 'Approve'}
           </Button>
           <Button
             size="sm"
             className="bg-red-700 hover:bg-red-600 text-white"
-            onClick={() => onReview(item.id, 'discarded')}
+            disabled={loadingAction !== null}
+            onClick={() => handleReview(item.id, 'discarded')}
           >
-            Discard
+            {loadingAction === 'discarded' ? (
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : 'Discard'}
           </Button>
         </div>
       )}
@@ -121,7 +143,7 @@ export default function RoomPage() {
   const [classList, setClassList] = useState([]);
   const [socket, setSocket] = useState(null);
   const [toasts, setToasts] = useState([]);
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const prevContributorCount = useRef(null);
   const toastCounter = useRef(0);
 
@@ -255,6 +277,7 @@ export default function RoomPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!className.trim()) return;
+    setIsSubmitting(true);
     try {
       const response = await fetch('/api/classes/create', {
         method: 'POST',
@@ -270,6 +293,8 @@ export default function RoomPage() {
     } catch (error) {
       console.error('Error submitting class:', error);
       alert('Failed to submit class name. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -396,10 +421,15 @@ export default function RoomPage() {
                   />
                   <Button
                     type="submit"
-                    disabled={!className.trim()}
+                    disabled={!className.trim() || isSubmitting}
                     className="w-full h-12 bg-zinc-700 hover:bg-zinc-600 text-zinc-100 font-bold"
                   >
-                    Submit
+                    {isSubmitting ? (
+                      <svg className="animate-spin h-4 w-4 mx-auto" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : 'Submit'}
                   </Button>
                 </form>
 

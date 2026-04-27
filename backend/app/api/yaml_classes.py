@@ -64,7 +64,7 @@ async def create_class(
     existing = db.query(YamlClass).filter(
         YamlClass.room_id == session.room_id,
         YamlClass.normalized_class_name == normalized,
-        YamlClass.status == ClassStatusDB.approved
+        # YamlClass.status == ClassStatusDB.approved
     ).first()
 
     if existing:
