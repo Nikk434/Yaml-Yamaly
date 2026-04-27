@@ -10,7 +10,7 @@ export async function GET(request) {
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
-  const response = await fetch(`${backendUrl}/classes/export`, {
+  const response = await fetch(`${backendUrl}/api/classes/export`, {
     method: 'GET',
     headers: {
       'X-Session-Token': sessionToken,

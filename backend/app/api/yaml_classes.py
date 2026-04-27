@@ -76,13 +76,13 @@ async def create_class(
     # fuzzy duplicate
     if not existing:
         print("Entered fuzzy match\n")
-        approved_classes = db.query(YamlClass).filter(
+        existing_class = db.query(YamlClass).filter(
             YamlClass.room_id == session.room_id,
-            YamlClass.status == ClassStatusDB.approved
+            # YamlClass.status == ClassStatusDB.approved
         ).all()
-        print("Approved classes:", [c.normalized_class_name for c in approved_classes])
+        print("Approved classes:", [c.normalized_class_name for c in existing_class])
 
-        fuzzy_matches = fuzzy_match_class(normalized, approved_classes)
+        fuzzy_matches = fuzzy_match_class(normalized, existing_class)
 
         if fuzzy_matches:
             matched_id, matched_name, score = fuzzy_matches[0]
