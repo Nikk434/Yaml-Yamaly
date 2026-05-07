@@ -27,6 +27,7 @@ class SessionContext(BaseModel):
     room_id: UUID
     role: SessionRole
     last_seen_at: datetime
+    room_code:str
 
 class SessionValidateRequest(BaseModel):
     session_token: str
