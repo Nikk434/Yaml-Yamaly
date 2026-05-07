@@ -184,7 +184,7 @@ def list_classes(
     return classes
 
 @router.get("/export")
-def export_yaml(
+async def export_yaml(
     session_token: str = Header(..., alias="X-Session-Token"),
     db: Session = Depends(get_db),
 ):
