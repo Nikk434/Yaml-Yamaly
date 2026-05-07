@@ -49,7 +49,12 @@ async def create_class(
     session_token: str,
     db: Session = Depends(get_db),
 ):
+    import time
+    t = {}
+    _start = time.perf_counter()
+
     session = get_current_session(session_token, db)
+    t["session_lookup"] = time.perf_counter()
 
     if session.role not in ("contributor", "host"):
         raise HTTPException(status_code=403, detail="Invalid role")
@@ -64,33 +69,29 @@ async def create_class(
     existing = db.query(YamlClass).filter(
         YamlClass.room_id == session.room_id,
         YamlClass.normalized_class_name == normalized,
-        # YamlClass.status == ClassStatusDB.approved
     ).first()
+    t["exact_dup_query"] = time.perf_counter()
 
     if existing:
         status_value = ClassStatusDB.needs_review
-        print("")
         review_reason = "exact duplicate"
         matched_id = existing.id
 
     # fuzzy duplicate
     if not existing:
-        print("Entered fuzzy match\n")
         existing_class = db.query(YamlClass).filter(
             YamlClass.room_id == session.room_id,
-            # YamlClass.status == ClassStatusDB.approved
         ).all()
-        print("Approved classes:", [c.normalized_class_name for c in existing_class])
+        t["fuzzy_fetch_query"] = time.perf_counter()
 
         fuzzy_matches = fuzzy_match_class(normalized, existing_class)
+        t["fuzzy_compute"] = time.perf_counter()
 
         if fuzzy_matches:
             matched_id, matched_name, score = fuzzy_matches[0]
-
             status_value = ClassStatusDB.needs_review
             review_reason = f"fuzzy match ({score}%) with '{matched_name}'"
-        print("exited fuzzy match\n")
-        
+
     obj = YamlClass(
         room_id=session.room_id,
         created_by_session_id=session.session_id,
@@ -100,14 +101,31 @@ async def create_class(
         review_reason=review_reason,
         matched_class_id=matched_id
     )
-    print("\nOBJ",obj)
     db.add(obj)
     db.commit()
-    db.refresh(obj)
+    # db.refresh(obj)
+    t["db_insert"] = time.perf_counter()
 
-    room = db.query(Room).filter(Room.id == session.room_id).first()
+    # room = db.query(Room).filter(Room.id == session.room_id).first()
+    t["room_query"] = time.perf_counter()
 
-    await emit_class_created(room.room_code, obj)
+    await emit_class_created(session.room_code, obj)
+    t["emit"] = time.perf_counter()
+
+    # --- print breakdown ---
+    checkpoints = ["session_lookup", "exact_dup_query", "fuzzy_fetch_query",
+                   "fuzzy_compute", "db_insert", "room_query", "emit"]
+    prev = _start
+    print("\n--- create_class profiling ---")
+    for key in checkpoints:
+        if key not in t:
+            continue
+        elapsed = (t[key] - prev) * 1000
+        total = (t[key] - _start) * 1000
+        print(f"  {key:<22} {elapsed:>7.1f}ms   (total {total:.1f}ms)")
+        prev = t[key]
+    print(f"  {'TOTAL':<22} {(time.perf_counter() - _start)*1000:>7.1f}ms")
+    print("------------------------------\n")
 
     return obj
 
@@ -142,9 +160,9 @@ async def review_class(
     db.commit()
     db.refresh(obj)
 
-    room = db.query(Room).filter(Room.id == session.room_id).first()
+    # room = db.query(Room).filter(Room.id == session.room_id).first()
 
-    await emit_class_reviewed(room.room_code, obj)
+    await emit_class_reviewed(session.room_code, obj)
 
     return obj
 
