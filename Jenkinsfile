@@ -37,13 +37,15 @@ pipeline {
 
         stage('Run Backend Container') {
             steps {
-                sh '''
-                docker run -d \
-                  --name fastapi-backend \
-                  -p 8000:8000 \
-                  -e DATABASE_URL="$DATABASE_URL" \
-                  fastapi-backend
-                '''
+                withCredentials([string(credentialsId: 'DATABASE_URL', variable: 'DATABASE_URL')]) {
+                    sh '''
+                    docker run -d \
+                    --name fastapi-backend \
+                    -p 8000:8000 \
+                    -e DATABASE_URL=$DATABASE_URL \
+                    fastapi-backend
+                    '''
+                }
             }
         }
 
