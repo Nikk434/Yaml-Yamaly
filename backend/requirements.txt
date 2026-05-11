@@ -5,6 +5,7 @@ python-dotenv
 sqlalchemy
 python-socketio[asgi]
 pyyaml
+psycopg2-binary
 
 # rooms
 # - id (UUID)
