@@ -10,7 +10,7 @@ pipeline {
         stage('Clone Repository') {
             steps {
                 git branch: 'main',
-                url: 'YOUR_GITHUB_REPO_URL'
+                url: 'https://github.com/Nikk434/Yaml-Yamaly.git'
             }
         }
 
