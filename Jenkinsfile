@@ -14,19 +14,12 @@ pipeline {
             }
         }
 
-        stage('Build Backend Image') {
+        stage('Build Images') {
             steps {
-                dir('backend') {
-                    sh 'docker build -t fastapi-backend .'
-                }
-            }
-        }
-
-        stage('Build Frontend Image') {
-            steps {
-                dir('frontend') {
-                    sh 'docker build -t next-frontend .'
-                }
+                sh '''
+                docker build --cache-from fastapi-backend -t fastapi-backend ./backend || docker build -t fastapi-backend ./backend
+                docker build --cache-from next-frontend -t next-frontend ./frontend || docker build -t next-frontend ./frontend
+                '''
             }
         }
 
