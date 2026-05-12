@@ -57,3 +57,6 @@ socket_app = socketio.ASGIApp(
     sio,
     other_asgi_app=fastapi_app
 )
+
+def make_socket_app(fastapi_app):
+    return socketio.ASGIApp(sio, other_asgi_app=fastapi_app)

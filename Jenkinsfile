@@ -17,8 +17,8 @@ pipeline {
         stage('Build Images') {
             steps {
                 sh '''
-                docker build --cache-from fastapi-backend -t fastapi-backend ./backend || docker build -t fastapi-backend ./backend
-                docker build --cache-from next-frontend -t next-frontend ./frontend || docker build -t next-frontend ./frontend
+                docker build -t fastapi-backend ./backend
+                docker build -t next-frontend ./frontend
                 '''
             }
         }

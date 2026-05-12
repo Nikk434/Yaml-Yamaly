@@ -5,6 +5,7 @@ from app.api import rooms
 from app.db.sessions import engine
 from app.db.base import Base
 from app.api import sessions, yaml_classes
+from socket_app import make_socket_app
 
 
 app = FastAPI(
@@ -26,3 +27,4 @@ app.include_router(sessions.router, prefix="/api")
 app.include_router(yaml_classes.router, prefix="/api")
 
 app.mount("/", socket_app)
+app = make_socket_app(app)
