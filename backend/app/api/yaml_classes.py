@@ -6,7 +6,6 @@ from thefuzz import process, fuzz
 from fastapi.responses import Response
 import yaml
 
-
 from app.db.sessions import get_db
 from app.schemas.rooms_sch import Room
 from app.schemas.yaml_class import YamlClass, ClassStatusDB
@@ -15,6 +14,7 @@ from app.models.yaml_class import (
     YamlClassResponse,
     YamlClassReviewRequest
 )
+from app.models.sessions import SessionContext
 from app.dependencies.sesh_dep import get_current_session
 from app.realtime.class_events import emit_class_created, emit_class_reviewed
 
@@ -25,7 +25,6 @@ router = APIRouter(prefix="/classes", tags=["classes"])
 
 def fuzzy_match_class(normalized_name: str, existing_classes):
     choices = {cls.normalized_class_name: cls.id for cls in existing_classes}
-
 
     results = process.extract(
         normalized_name,
@@ -48,12 +47,11 @@ async def create_class(
     payload: YamlClassCreateRequest,
     session_token: str,
     db: Session = Depends(get_db),
+    curr_session: SessionContext = Depends(get_current_session),
 ):
     import time
     t = {}
     _start = time.perf_counter()
-
-    curr_session = get_current_session(session_token, db)
     t["session_lookup"] = time.perf_counter()
 
     if curr_session.role not in ("contributor", "host"):
@@ -103,10 +101,8 @@ async def create_class(
     )
     db.add(obj)
     db.commit()
-    # db.refresh(obj)
     t["db_insert"] = time.perf_counter()
 
-    # room = db.query(Room).filter(Room.id == session.room_id).first()
     t["room_query"] = time.perf_counter()
 
     await emit_class_created(curr_session.room_code, obj)
@@ -136,9 +132,8 @@ async def review_class(
     payload: YamlClassReviewRequest,
     session_token: str = Header(..., alias="X-Session-Token"),
     db: Session = Depends(get_db),
+    curr_session: SessionContext = Depends(get_current_session),
 ):
-    curr_session = get_current_session(session_token, db)
-
     if curr_session.role != "host":
         raise HTTPException(status_code=403, detail="Host only")
 
@@ -160,20 +155,17 @@ async def review_class(
     db.commit()
     db.refresh(obj)
 
-    # room = db.query(Room).filter(Room.id == session.room_id).first()
-
     await emit_class_reviewed(curr_session.room_code, obj)
 
     return obj
 
 
 @router.get("", response_model=list[YamlClassResponse])
-def list_classes(
+async def list_classes(
     session_token: str = Header(..., alias="X-Session-Token"),
     db: Session = Depends(get_db),
+    curr_session: SessionContext = Depends(get_current_session),
 ):
-    curr_session = get_current_session(session_token, db)
-
     classes = (
         db.query(YamlClass)
         .filter(YamlClass.room_id == curr_session.room_id)
@@ -183,13 +175,13 @@ def list_classes(
 
     return classes
 
+
 @router.get("/export")
 async def export_yaml(
     session_token: str = Header(..., alias="X-Session-Token"),
     db: Session = Depends(get_db),
+    curr_session: SessionContext = Depends(get_current_session),
 ):
-    curr_session = get_current_session(session_token, db)
-
     if curr_session.role != "host":
         raise HTTPException(status_code=403, detail="Host only")
 
@@ -197,7 +189,6 @@ async def export_yaml(
         YamlClass.room_id == curr_session.room_id
     ).all()
 
-    # block export if unreviewed exist
     pending = [
         c for c in classes
         if c.status in (ClassStatusDB.entered, ClassStatusDB.needs_review)
