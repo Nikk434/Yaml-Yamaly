@@ -6,6 +6,7 @@ sqlalchemy
 python-socketio[asgi]
 pyyaml
 psycopg2-binary
+thefuzz
 
 # rooms
 # - id (UUID)
