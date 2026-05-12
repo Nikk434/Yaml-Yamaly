@@ -166,7 +166,7 @@ export default function RoomPage() {
     if (!sessionToken || !roomCode) return;
 
     const socketInstance = io(
-      process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000',
+      process.env.BACKEND_URL || 'http://localhost:8000',
       { transports: ['websocket'] }
     );
 
