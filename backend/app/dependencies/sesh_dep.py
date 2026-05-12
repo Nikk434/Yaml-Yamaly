@@ -15,8 +15,8 @@ def _update_last_seen(session_id, db):
         db.commit()
     except:
         pass
-
-def get_current_session(
+# AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+async def get_current_session(
     x_session_token: str = Header(..., alias="X-Session-Token"),
     db: Session = Depends(get_db)
 ) -> SessionContext:
