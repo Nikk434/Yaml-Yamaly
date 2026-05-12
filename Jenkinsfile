@@ -57,9 +57,10 @@ pipeline {
             steps {
                 sh '''
                 docker run -d \
-                  --name next-frontend \
-                  -p 3000:3000 \
-                  next-frontend
+                --name next-frontend \
+                -p 3000:3000 \
+                -e BACKEND_URL=http://3.7.30.50:8000 \
+                next-frontend
                 '''
             }
         }
