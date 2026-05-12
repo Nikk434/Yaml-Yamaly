@@ -8,6 +8,7 @@ pyyaml
 psycopg2-binary
 thefuzz
 pydantic-settings
+
 # rooms
 # - id (UUID)
 # - room_code (human, joinable)
