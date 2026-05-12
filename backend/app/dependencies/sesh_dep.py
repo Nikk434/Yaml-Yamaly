@@ -32,7 +32,7 @@ def get_current_session(
 
     # session.last_seen_at = datetime.utcnow()
     # db.commit()
-    asyncio.create_task(
+    asyncio.ensure_future(
         asyncio.to_thread(_update_last_seen, session.id, db)
     )
     return SessionContext(
