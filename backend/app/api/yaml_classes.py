@@ -53,10 +53,10 @@ async def create_class(
     t = {}
     _start = time.perf_counter()
 
-    session = get_current_session(session_token, db)
+    curr_session = get_current_session(session_token, db)
     t["session_lookup"] = time.perf_counter()
 
-    if session.role not in ("contributor", "host"):
+    if curr_session.role not in ("contributor", "host"):
         raise HTTPException(status_code=403, detail="Invalid role")
 
     normalized = payload.class_name.strip().lower()
@@ -67,7 +67,7 @@ async def create_class(
 
     # exact duplicate
     existing = db.query(YamlClass).filter(
-        YamlClass.room_id == session.room_id,
+        YamlClass.room_id == curr_session.room_id,
         YamlClass.normalized_class_name == normalized,
     ).first()
     t["exact_dup_query"] = time.perf_counter()
@@ -80,7 +80,7 @@ async def create_class(
     # fuzzy duplicate
     if not existing:
         existing_class = db.query(YamlClass).filter(
-            YamlClass.room_id == session.room_id,
+            YamlClass.room_id == curr_session.room_id,
         ).all()
         t["fuzzy_fetch_query"] = time.perf_counter()
 
@@ -93,8 +93,8 @@ async def create_class(
             review_reason = f"fuzzy match ({score}%) with '{matched_name}'"
 
     obj = YamlClass(
-        room_id=session.room_id,
-        created_by_session_id=session.session_id,
+        room_id=curr_session.room_id,
+        created_by_session_id=curr_session.session_id,
         raw_class_name=payload.class_name,
         normalized_class_name=normalized,
         status=status_value,
@@ -109,7 +109,7 @@ async def create_class(
     # room = db.query(Room).filter(Room.id == session.room_id).first()
     t["room_query"] = time.perf_counter()
 
-    await emit_class_created(session.room_code, obj)
+    await emit_class_created(curr_session.room_code, obj)
     t["emit"] = time.perf_counter()
 
     # --- print breakdown ---
@@ -137,14 +137,14 @@ async def review_class(
     session_token: str = Header(..., alias="X-Session-Token"),
     db: Session = Depends(get_db),
 ):
-    session = get_current_session(session_token, db)
+    curr_session = get_current_session(session_token, db)
 
-    if session.role != "host":
+    if curr_session.role != "host":
         raise HTTPException(status_code=403, detail="Host only")
 
     obj = db.query(YamlClass).filter(
         YamlClass.id == class_id,
-        YamlClass.room_id == session.room_id
+        YamlClass.room_id == curr_session.room_id
     ).first()
 
     if not obj:
@@ -162,7 +162,7 @@ async def review_class(
 
     # room = db.query(Room).filter(Room.id == session.room_id).first()
 
-    await emit_class_reviewed(session.room_code, obj)
+    await emit_class_reviewed(curr_session.room_code, obj)
 
     return obj
 
@@ -172,11 +172,11 @@ def list_classes(
     session_token: str = Header(..., alias="X-Session-Token"),
     db: Session = Depends(get_db),
 ):
-    session = get_current_session(session_token, db)
+    curr_session = get_current_session(session_token, db)
 
     classes = (
         db.query(YamlClass)
-        .filter(YamlClass.room_id == session.room_id)
+        .filter(YamlClass.room_id == curr_session.room_id)
         .order_by(YamlClass.created_at.asc())
         .all()
     )
@@ -188,13 +188,13 @@ async def export_yaml(
     session_token: str = Header(..., alias="X-Session-Token"),
     db: Session = Depends(get_db),
 ):
-    session = get_current_session(session_token, db)
+    curr_session = get_current_session(session_token, db)
 
-    if session.role != "host":
+    if curr_session.role != "host":
         raise HTTPException(status_code=403, detail="Host only")
 
     classes = db.query(YamlClass).filter(
-        YamlClass.room_id == session.room_id
+        YamlClass.room_id == curr_session.room_id
     ).all()
 
     # block export if unreviewed exist
